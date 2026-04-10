@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Imperial Construction Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+
+        .lcd-font { font-family: 'JetBrains+Mono', monospace; }
+        .lcd-bg { background-color: #b5c0a3; }
+        .three-d {
+            box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5),
+                        -1px -1px 0 rgba(255, 255, 255, 0.5);
+        }
+
+        button {
+            font-size: clamp(1rem, 10vw, 2.5rem) !important;
+            font-weight: 600 !important;
+            font-family: inherit !important;
+            line-height: 1.2;
+            border-top: 2px solid rgba(255, 255, 255, 1);
+            border-left: none;
+            border-bottom: none;
+            border-right: none;
+        }
+
+        button.bg-slate-200 {
+            --tw-bg-opacity: 1;
+            background-color: rgb(210 210 210 / var(--tw-bg-opacity));
+        }
+
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-slate-900 h-screen flex justify-start items-end p-0">
+
+    <div class="w-screen h-screen bg-slate-900 rounded-none shadow-none p-4 sm:p-8 border-0 flex flex-col overflow-x-visible three-d">
+        <!-- LCD Screen -->
+        <div class="lcd-bg relative rounded-lg p-2 md:p-4 shadow-inner mb-2 flex flex-col justify-end h-[15%] min-h-[130px] md:min-h-40 border-b-4 border-slate-700">
+            <div class="flex justify-between items-start text-slate-700 lcd-font text-[10px] font-bold uppercase opacity-80 mb-1">
+                <span id="history-display" class="absolute top-1 left-1 whitespace-pre-wrap max-w-[260px] max-h-32 overflow-y-auto text-2xl font-extrabold no-scrollbar"></span>
+                <span id="top-display" class="absolute top-1 right-1 text-slate-900 bg-slate-800/10 px-2 rounded-lg text-lg md:text-2xl font-extrabold"></span>
+            </div>
+            <div id="main-display" class="text-slate-900 lcd-font text-5xl md:text-8xl lg:text-9xl font-extrabold text-right tracking-tight overflow-x-visible overflow-y-hidden leading-none py-4 pr-6">
+                0
+            </div>
+        </div>
+
+        <!-- Precision Toggle -->
+        <div class="flex justify-center gap-2 mb-2 bg-slate-800/50 p-1 rounded-lg">
+            <button onclick="setPrecision(8)" id="prec-8" class="flex-1 py-1 text-xs md:text-sm font-bold rounded bg-slate-700 text-slate-400 hover:text-white transition-colors border-0 shadow-none !text-[12px] uppercase">1/8</button>
+            <button onclick="setPrecision(16)" id="prec-16" class="flex-1 py-1 text-xs md:text-sm font-bold rounded bg-slate-700 text-slate-400 hover:text-white transition-colors border-0 shadow-none !text-[12px] uppercase">1/16</button>
+            <button onclick="setPrecision(32)" id="prec-32" class="flex-1 py-1 text-xs md:text-sm font-bold rounded bg-slate-600 text-white transition-colors border-0 shadow-none !text-[12px] uppercase">1/32</button>
+        </div>
+
+        <!-- Keypad -->
+        <div class="grid grid-cols-4 gap-1 flex-grow min-h-0">
+            <button onclick="handleSpace()" title="unit separator" class="py-3 md:py-4 text-2xl md:text-3xl font-semibold rounded-lg bg-slate-500 text-white hover:bg-slate-400 active:scale-95 transition-transform col-span-2">␣</button>
+            <button onclick="handleSlash()" class="py-2 md:py-3 text-xl md:text-2xl font-semibold rounded-lg bg-slate-500 text-white hover:bg-slate-400 active:scale-95 transition-transform">/</button>
+            <button onclick="handleBackspace()" class="py-2 md:py-3 text-xl md:text-2xl font-semibold rounded-lg bg-slate-600 text-white hover:bg-slate-500 active:scale-95 transition-transform">⌫</button>
+
+            <button onclick="handleDigit('7')" class="py-3 md:py-4 text-lg md:text-xl font-semibold rounded-lg bg-slate-200 text-slate-900 hover:bg-white active:scale-95 transition-transform">7</button>
+            <button onclick="handleDigit('8')" class="py-3 md:py-4 text-lg md:text-xl font-semibold rounded-lg bg-slate-200 text-slate-900 hover:bg-white active:scale-95 transition-transform">8</button>
+            <button onclick="handleDigit('9')" class="py-3 md:py-4 text-lg md:text-xl font-semibold rounded-lg bg-slate-200 text-slate-900 hover:bg-white active:scale-95 transition-transform">9</button>
+            <button onclick="handleOperator('÷')" class="py-3 md:py-4 text-xl md:text-2xl font-semibold rounded-lg bg-slate-700 text-white hover:bg-slate-600 active:scale-95 transition-transform">÷</button>
+
+            <button onclick="handleDigit('4')" class="py-3 md:py-4 text-lg md:text-xl font-semibold rounded-lg bg-slate-200 text-slate-900 hover:bg-white active:scale-95 transition-transform">4</button>
+            <button onclick="handleDigit('5')" class="py-3 md:py-4 text-lg md:text-xl font-semibold rounded-lg bg-slate-200 text-slate-900 hover:bg-white active:scale-95 transition-transform">5</button>
+            <button onclick="handleDigit('6')" class="py-3 md:py-4 text-lg md:text-xl font-semibold rounded-lg bg-slate-200 text-slate-900 hover:bg-white active:scale-95 transition-transform">6</button>
+            <button onclick="handleOperator('×')" class="py-3 md:py-4 text-xl md:text-2xl font-semibold rounded-lg bg-slate-700 text-white hover:bg-slate-600 active:scale-95 transition-transform">×</button>
+
+            <button onclick="handleDigit('1')" class="py-2 md:py-3 text-lg md:text-xl font-semibold rounded-lg bg-slate-200 text-slate-900 hover:bg-white active:scale-95 transition-transform">1</button>
+            <button onclick="handleDigit('2')" class="py-2 md:py-3 text-lg md:text-xl font-semibold rounded-lg bg-slate-200 text-slate-900 hover:bg-white active:scale-95 transition-transform">2</button>
+            <button onclick="handleDigit('3')" class="py-2 md:py-3 text-lg md:text-xl font-semibold rounded-lg bg-slate-200 text-slate-900 hover:bg-white active:scale-95 transition-transform">3</button>
+            <button onclick="handleOperator('-')" class="py-2 md:py-3 text-xl md:text-2xl font-semibold rounded-lg bg-slate-700 text-white hover:bg-slate-600 active:scale-95 transition-transform">-</button>
+
+            <button onclick="handleClear()" class="py-2 md:py-3 text-lg md:text-xl font-semibold rounded-lg bg-red-600 text-white hover:bg-red-500 active:scale-95 transition-transform">AC</button>
+            <button onclick="handleDigit('0')" class="py-2 md:py-3 text-lg md:text-xl font-semibold rounded-lg bg-slate-200 text-slate-900 hover:bg-white active:scale-95 transition-transform">0</button>
+            <button onclick="handleDigit('.')" class="py-2 md:py-3 text-lg md:text-xl font-black rounded-lg bg-slate-200 text-slate-900 hover:bg-white active:scale-95 transition-transform">.</button>
+            <button onclick="handleOperator('+')" class="py-2 md:py-3 text-xl md:text-2xl font-semibold rounded-lg bg-slate-700 text-white hover:bg-slate-600 active:scale-95 transition-transform">+</button>
+            
+            <button onclick="handleEquals()" class="py-2 md:py-4 text-3xl font-semibold rounded-lg bg-amber-600 text-white hover:bg-amber-500 col-span-4 active:scale-95 transition-transform">=</button>
+        </div>
+    </div>
+
+    <script>
+        let stack = [];            // [{val, isMeas}, '+', ...]
+        let currentInput = "";     // raw string of numbers
+        let currentParts = [];     // segments ["5", "6"]
+        let history = [];
+        let lastResult = null;
+        let currentPrecision = 32; // Default precision
+
+        const mainEl = document.getElementById('main-display');
+        const topEl = document.getElementById('top-display');
+        const histEl = document.getElementById('history-display');
+
+        function logState(action) {
+            console.log(`[ACTION: ${action}]`, {
+                currentInput,
+                currentParts,
+                stack,
+                lastResult,
+                topText: topEl.innerText,
+                mainText: mainEl.innerText
+            });
+        }
+
+        function gcd(a, b) { return b ? gcd(b, a % b) : a; }
+
+        function toNum(s) {
+            if (!s) return 0;
+            if (s.includes('/')) {
+                const [n, d] = s.split('/');
+                return (parseFloat(n) || 0) / (parseFloat(d) || 1);
+            }
+            return parseFloat(s) || 0;
+        }
+
+        function partsToMeasurement(parts) {
+            if (parts.length === 0) return { val: 0, isMeas: false };
+            if (parts.length === 1) return { val: toNum(parts[0]), isMeas: false };
+            
+            let ft = 0, inch = 0, frac = 0;
+            if (parts.length === 2) {
+                if (parts[1].includes('/')) {
+                    ft = toNum(parts[0]);
+                    frac = toNum(parts[1]);
+                } else if (parts[0].includes('/') && !parts[1].includes('/')) {
+                    inch = toNum(parts[0]);
+                    frac = toNum(parts[1]);
+                } else {
+                    ft = toNum(parts[0]);
+                    inch = toNum(parts[1]);
+                }
+            } else {
+                ft = toNum(parts[0]);
+                inch = toNum(parts[1]);
+                frac = toNum(parts[2]);
+            }
+            return { val: (ft * 12) + inch + frac, isMeas: true };
+        }
+
+        function formatValue(val, isMeas) {
+            if (isNaN(val)) return { main: "Error", top: "" };
+            const reduce = (n, d) => { let g = gcd(n, d); return [n / g, d / g]; };
+            const absVal = Math.abs(val);
+
+            if (!isMeas) return { main: (+val.toFixed(4)).toString(), top: "" };
+
+            let totalIn = Math.floor(absVal);
+            let rem = absVal - totalIn;
+            let n = Math.round(rem * currentPrecision);
+            let d = currentPrecision;
+            if (n === d) { totalIn += 1; n = 0; }
+            [n, d] = reduce(n, d);
+
+            let frac = n > 0 ? n + "/" + d : "";
+            let main = (val < 0 ? "-" : "") + (totalIn > 0 ? totalIn : (frac ? "" : "0"));
+            if (frac) main += (totalIn > 0 ? " " : "") + frac;
+            main += "in";
+
+            let ft = Math.floor(totalIn / 12);
+            let inch = totalIn % 12;
+            let top = "";
+            if (ft > 0) {
+                top = (val < 0 ? "-" : "") + ft + "ft";
+                let inP = "";
+                if (inch > 0) inP += inch;
+                if (frac) inP += (inch > 0 ? "-" : "") + frac;
+                if (inP) top += " " + inP + "in";
+            }
+            return { main, top };
+        }
+
+        function updateScreen() {
+            let topText = stack.map(i => typeof i === 'string' ? i : formatValue(i.val, i.isMeas).main).join(' ');
+            let mainText = "0";
+
+            if (lastResult) {
+                mainText = formatValue(lastResult.val, lastResult.isMeas).main;
+            } else {
+                let p = [...currentParts];
+                if (currentInput) p.push(currentInput);
+                if (p.length === 0) mainText = "0";
+                else if (p.length === 1) mainText = p[0];
+                else if (p.length === 2) {
+                    if (p[1].includes('/')) mainText = p[0] + "in " + p[1];
+                    else mainText = p[0] + "ft " + p[1];
+                } else {
+                    mainText = p[0] + "ft " + p[1] + "in " + p[2];
+                }
+            }
+
+            mainEl.innerText = mainText;
+            topEl.innerText = topText;
+            histEl.innerText = history.join("\n");
+            histEl.scrollTop = histEl.scrollHeight;
+
+            // Highlight active precision
+            [8, 16, 32].forEach(p => {
+                const btn = document.getElementById(`prec-${p}`);
+                if (btn) {
+                    if (p === currentPrecision) {
+                        btn.classList.add('bg-slate-600', 'text-white');
+                        btn.classList.remove('bg-slate-700', 'text-slate-400');
+                    } else {
+                        btn.classList.remove('bg-slate-600', 'text-white');
+                        btn.classList.add('bg-slate-700', 'text-slate-400');
+                    }
+                }
+            });
+        }
+
+        function blurAll() { if (document.activeElement) document.activeElement.blur(); }
+
+        window.handleDigit = (d) => { if (lastResult) handleClear(); currentInput += d; updateScreen(); };
+        window.handleSpace = () => { 
+            if (lastResult) lastResult = null;
+            if (currentInput && currentParts.length < 2) { currentParts.push(currentInput); currentInput = ""; } 
+            updateScreen(); 
+        };
+        window.handleSlash = () => {
+            blurAll();
+            if (lastResult) lastResult = null;
+            currentInput += "/";
+            logState('handleSlash');
+            updateScreen();
+        };
+
+        window.setPrecision = (p) => {
+            blurAll();
+            currentPrecision = p;
+            console.log(`[PRECISION SET TO: 1/${p}]`);
+            updateScreen();
+        };
+
+        window.handleOperator = (op) => {
+            let p = [...currentParts];
+            if (currentInput) p.push(currentInput);
+            if (p.length) {
+                stack.push(partsToMeasurement(p), op);
+                currentParts = []; currentInput = "";
+            } else if (lastResult) {
+                stack = [lastResult, op];
+                lastResult = null;
+            } else if (stack.length) {
+                stack[stack.length - 1] = op;
+            }
+            updateScreen();
+        };
+
+        window.handleEquals = () => {
+            let evalRes = evaluate();
+            if (!evalRes) return;
+            let { result, expr } = evalRes;
+            let exprStr = expr.map(i => typeof i === 'string' ? i : formatValue(i.val, i.isMeas).main).join(' ');
+            history.push(exprStr + " = " + formatValue(result.val, result.isMeas).main);
+            if (history.length > 30) history.shift();
+            lastResult = result;
+            stack = []; currentParts = []; currentInput = "";
+            updateScreen();
+        };
+
+        function evaluate() {
+            let items = [...stack];
+            let pending = [...currentParts];
+            if (currentInput) pending.push(currentInput);
+            if (pending.length) items.push(partsToMeasurement(pending));
+            
+            if (items.length === 0) return null;
+            if (typeof items[items.length - 1] === 'string') items.pop();
+            if (items.length === 0) return null;
+
+            let res = { ...items[0] };
+            for (let i = 1; i < items.length; i += 2) {
+                let op = items[i];
+                let next = items[i + 1];
+                if (!next) break;
+                if (op === '+') { res.val += next.val; res.isMeas = res.isMeas || next.isMeas; }
+                else if (op === '-') { res.val -= next.val; res.isMeas = res.isMeas || next.isMeas; }
+                else if (op === '×' || op === '*') { res.val *= next.val; res.isMeas = res.isMeas || next.isMeas; }
+                else if (op === '÷' || op === '/') { res.val /= (next.val || 1); if (res.isMeas && next.isMeas) res.isMeas = false; }
+            }
+            return { result: res, expr: items };
+        }
+
+        window.handleClear = () => { stack = []; currentInput = ""; currentParts = []; lastResult = null; updateScreen(); };
+        window.handleBackspace = () => {
+            if (lastResult) { handleClear(); return; }
+            if (currentInput) currentInput = currentInput.slice(0, -1);
+            else if (currentParts.length) currentInput = currentParts.pop();
+            else if (stack.length) { stack.pop(); lastResult = stack.pop(); }
+            updateScreen();
+        };
+
+        window.addEventListener('keydown', (e) => {
+            const key = e.key;
+            if (key >= '0' && key <= '9') { e.preventDefault(); handleDigit(key); }
+            else if (key === '.') { e.preventDefault(); handleDigit('.'); }
+            else if (key === '/') { e.preventDefault(); handleSlash(); }
+            else if (key === ' ') { e.preventDefault(); handleSpace(); }
+            else if (key === '+') { e.preventDefault(); handleOperator('+'); }
+            else if (key === '-') { e.preventDefault(); handleOperator('-'); }
+            else if (key === '*') { e.preventDefault(); handleOperator('×'); }
+            else if (key === 'Enter' || key === '=') { e.preventDefault(); handleEquals(); }
+            else if (key === 'Backspace') { e.preventDefault(); handleBackspace(); }
+            else if (key === 'Escape') { e.preventDefault(); handleClear(); }
+        });
+
+        window.addEventListener('DOMContentLoaded', updateScreen);
+        window.addEventListener('resize', updateScreen);
+    </script>
+</body>
+</html>

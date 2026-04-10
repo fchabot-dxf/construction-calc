@@ -1,0 +1,44 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+
+.lcd-font {
+    font-family: 'JetBrains+Mono', monospace;
+}
+
+.lcd-bg {
+    background-color: #b5c0a3;
+}
+
+/* small 3D border effect */
+.three-d {
+    box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5),
+                -1px -1px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* make button text resize with viewport while keeping padding intact */
+button {
+    font-size: clamp(1rem, 10vw, 2.5rem) !important;
+    font-weight: 600 !important;
+    font-family: inherit !important;
+    line-height: 1.2;
+    /* 3D look: white top border */
+    border-top: 2px solid rgba(255, 255, 255, 1);
+    border-left: none;
+    border-bottom: none;
+    border-right: none;
+}
+
+/* make former white buttons a much greyer shade */
+button.bg-slate-200 {
+    --tw-bg-opacity: 1;
+    background-color: rgb(210 210 210 / var(--tw-bg-opacity));
+}
+
+/* utility: hide scrollbar but allow scrolling */
+.no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+}
+
+.no-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+}
