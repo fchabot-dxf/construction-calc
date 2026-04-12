@@ -44,12 +44,13 @@ function parseNumber(value) {
 }
 
 function partsToMeasurement(parts) {
-    if (parts.length === 0) return { val: 0, isMeas: false };
-    if (parts.length === 1) return { val: parseNumber(parts[0]), isMeas: true };
+    const raw = parts.join(' ');
+    if (parts.length === 0) return { val: 0, isMeas: false, raw };
+    if (parts.length === 1) return { val: parseNumber(parts[0]), isMeas: true, raw };
 
     const whole = parseNumber(parts[0]);
     const frac = parseNumber(parts[1]);
-    return { val: whole + frac, isMeas: true };
+    return { val: whole + frac, isMeas: true, raw };
 }
 
 function isDecimalPrecision() {
@@ -117,7 +118,9 @@ function getInputDisplay() {
 
 function getStackExpression() {
     return CalculatorState.stack
-        .map(item => typeof item === 'string' ? item : formatValue(item.val, item.isMeas, false).main)
+        .map(item => typeof item === 'string'
+            ? item
+            : (item.raw || formatValue(item.val, item.isMeas, false).main))
         .join(' ');
 }
 
@@ -164,10 +167,30 @@ function evaluateExpression(items) {
     return result;
 }
 
+function getLiveItems() {
+    const items = [...CalculatorState.stack];
+    const parts = [...CalculatorState.currentParts];
+    if (CalculatorState.currentInput) parts.push(CalculatorState.currentInput);
+    if (parts.length) items.push(partsToMeasurement(parts));
+    return items;
+}
+
 function formatExpression(items) {
     return items
-        .map(item => typeof item === 'string' ? item : formatValue(item.val, item.isMeas, false).main)
+        .map(item => {
+            if (typeof item === 'string') return item;
+            return item.raw ? item.raw : formatValue(item.val, item.isMeas, false).main;
+        })
         .join(' ');
+}
+
+function computeLiveResult() {
+    const items = getLiveItems();
+    if (items.length === 0) return null;
+    if (typeof items[items.length - 1] === 'string') items.pop();
+    if (items.length === 0) return null;
+    const result = evaluateExpression(items);
+    return formatValue(result.val, result.isMeas, true).main;
 }
 
 function adjustTopDisplay() {
@@ -182,7 +205,11 @@ function adjustTopDisplay() {
 }
 
 function updateScreen() {
-    topEl.innerText = getStackExpression();
+    const liveItems = getLiveItems();
+    const liveExpression = liveItems.length ? formatExpression(liveItems) : "";
+    const liveResult = computeLiveResult();
+    topEl.innerText = liveResult ? `${liveExpression} = ${liveResult}` : liveExpression;
+
     mainEl.innerText = CalculatorState.lastResult
         ? formatValue(CalculatorState.lastResult.val, CalculatorState.lastResult.isMeas, true).main
         : getInputDisplay();
