@@ -39,19 +39,16 @@ except Exception:
     exit(1)
 
 workspace_dir = os.path.dirname(__file__) or "."
-dist_dir = os.path.join(workspace_dir, "dist")
+src_dir = os.path.join(workspace_dir, "src")
 
-
-# No need to copy or rebuild; just deploy dist/ as-is
-if not os.path.exists(dist_dir):
-    print("Error: dist/ folder does not exist. Please add your files to dist/ before deploying.")
+if not os.path.exists(src_dir):
+    print("Error: src/ folder does not exist. Please keep your site files in src/ and try again.")
     sys.exit(1)
 
-print("Deploying dist/ with wrangler...")
+print("Deploying src/ with wrangler...")
 
-# Deploy dist directly
 result = subprocess.run([
-    WRANGLER_CMD, "pages", "deploy", dist_dir, "--project-name", PROJECT_NAME
+    WRANGLER_CMD, "pages", "deploy", src_dir, "--project-name", PROJECT_NAME
 ], cwd=workspace_dir)
 
 if result.returncode == 0:

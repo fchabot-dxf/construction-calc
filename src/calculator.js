@@ -8,7 +8,7 @@ let currentInput = "";     // raw string of numbers
 let currentParts = [];     // segments ["5", "6"]
 let history = [];
 let lastResult = null;
-let currentPrecision = 32; // Default precision
+let currentPrecision = 8; // Default precision: 1/8
 
 const mainEl = document.getElementById('main-display');
 const topEl = document.getElementById('top-display');
@@ -38,34 +38,53 @@ function toNum(s) {
 
 function partsToMeasurement(parts) {
     if (parts.length === 0) return { val: 0, isMeas: false };
-    if (parts.length === 1) return { val: toNum(parts[0]), isMeas: false };
-    
-    let ft = 0, inch = 0, frac = 0;
-    if (parts.length === 2) {
-        if (parts[1].includes('/')) {
-            ft = toNum(parts[0]);
-            frac = toNum(parts[1]);
-        } else if (parts[0].includes('/') && !parts[1].includes('/')) {
-            inch = toNum(parts[0]);
-            frac = toNum(parts[1]);
-        } else {
-            ft = toNum(parts[0]);
-            inch = toNum(parts[1]);
-        }
-    } else {
-        ft = toNum(parts[0]);
-        inch = toNum(parts[1]);
-        frac = toNum(parts[2]);
-    }
-    return { val: (ft * 12) + inch + frac, isMeas: true };
+    if (parts.length === 1) return { val: toNum(parts[0]), isMeas: true };
+
+    let whole = toNum(parts[0]);
+    let frac = toNum(parts[1]);
+    return { val: whole + frac, isMeas: true };
 }
 
-function formatValue(val, isMeas) {
+function formatValue(val, isMeas, roundResult = false) {
     if (isNaN(val)) return { main: "Error", top: "" };
     const reduce = (n, d) => { let g = gcd(n, d); return [n / g, d / g]; };
     const absVal = Math.abs(val);
 
-    if (!isMeas) return { main: (+val.toFixed(4)).toString(), top: "" };
+    if (!isMeas) {
+        if (!roundResult || currentPrecision === 'dec') {
+            if (currentPrecision === 'dec') {
+                let decimal = +val.toPrecision(12);
+                return { main: decimal.toString(), top: "" };
+            }
+            let total = Math.floor(absVal);
+            let rem = absVal - total;
+            let n = Math.round(rem * currentPrecision);
+            let d = currentPrecision;
+            if (n === d) { total += 1; n = 0; }
+            [n, d] = reduce(n, d);
+
+            let frac = n > 0 ? n + "/" + d : "";
+            let main = (val < 0 ? "-" : "") + (total > 0 ? total : (frac ? "" : "0"));
+            if (frac) main += (total > 0 ? " " : "") + frac;
+            return { main, top: "" };
+        }
+        const step = 1 / currentPrecision;
+        const rounded = Math.round((val + Number.EPSILON) / step) * step;
+        let total = Math.floor(Math.abs(rounded));
+        let rem = Math.abs(rounded) - total;
+        let n = Math.round(rem * currentPrecision);
+        let d = currentPrecision;
+        if (n === d) { total += 1; n = 0; }
+        [n, d] = reduce(n, d);
+        let frac = n > 0 ? n + "/" + d : "";
+        let main = (rounded < 0 ? "-" : "") + (total > 0 ? total : (frac ? "" : "0"));
+        if (frac) main += (total > 0 ? " " : "") + frac;
+        return { main, top: "" };
+    }
+    if (currentPrecision === 'dec') {
+        let decimal = +val.toPrecision(12);
+        return { main: String(decimal), top: "" };
+    }
 
     let totalIn = Math.floor(absVal);
     let rem = absVal - totalIn;
@@ -77,49 +96,36 @@ function formatValue(val, isMeas) {
     let frac = n > 0 ? n + "/" + d : "";
     let main = (val < 0 ? "-" : "") + (totalIn > 0 ? totalIn : (frac ? "" : "0"));
     if (frac) main += (totalIn > 0 ? " " : "") + frac;
-    main += "in";
 
-    let ft = Math.floor(totalIn / 12);
-    let inch = totalIn % 12;
-    let top = "";
-    if (ft > 0) {
-        top = (val < 0 ? "-" : "") + ft + "ft";
-        let inP = "";
-        if (inch > 0) inP += inch;
-        if (frac) inP += (inch > 0 ? "-" : "") + frac;
-        if (inP) top += " " + inP + "in";
-    }
-    return { main, top };
+    return { main, top: "" };
 }
 
 function updateScreen() {
     // TOP DISPLAY (The Pill): Only show finalized tokens from stack.
     // If we are just starting to type a number, the pill stays empty or shows the expression so far.
-    let topText = stack.map(i => typeof i === 'string' ? i : formatValue(i.val, i.isMeas).main).join(' ');
+    let topText = stack.map(i => typeof i === 'string' ? i : formatValue(i.val, i.isMeas, false).main).join(' ');
     
     let mainText = "0";
     if (lastResult) {
-        mainText = formatValue(lastResult.val, lastResult.isMeas).main;
+        mainText = formatValue(lastResult.val, lastResult.isMeas, true).main;
     } else {
         let p = [...currentParts];
         if (currentInput) p.push(currentInput);
         if (p.length === 0) mainText = "0";
-        else if (p.length === 1) mainText = p[0];
-        else if (p.length === 2) {
-            if (p[1].includes('/')) mainText = p[0] + "in " + p[1];
-            else mainText = p[0] + "ft " + p[1];
-        } else {
-            mainText = p[0] + "ft " + p[1] + "in " + p[2];
-        }
+        else if (p.length === 1) {
+            mainText = p[0];
+            if (!currentInput) mainText += " ";
+        } else if (p.length === 2) mainText = p[0] + " " + p[1];
     }
 
     mainEl.innerText = mainText;
     topEl.innerText = topText;
+    adjustTopDisplay();
     histEl.innerText = history.join("\n");
     histEl.scrollTop = histEl.scrollHeight;
 
     // Highlight active precision
-    [8, 16, 32].forEach(p => {
+    ['dec', 8, 16, 32].forEach(p => {
         const btn = document.getElementById(`prec-${p}`);
         if (btn) {
             if (p === currentPrecision) {
@@ -131,6 +137,17 @@ function updateScreen() {
             }
         }
     });
+}
+
+function adjustTopDisplay() {
+    if (!topEl) return;
+    topEl.style.fontSize = '';
+    const minSize = 10;
+    let size = parseFloat(window.getComputedStyle(topEl).fontSize) || 18;
+    while (topEl.scrollWidth > topEl.clientWidth && size > minSize) {
+        size -= 1;
+        topEl.style.fontSize = size + 'px';
+    }
 }
 
 function blurAll() { if (document.activeElement) document.activeElement.blur(); }
@@ -173,7 +190,11 @@ window.handleSlash = () => {
 window.setPrecision = (p) => {
     blurAll();
     currentPrecision = p;
-    console.log(`[PRECISION SET TO: 1/${p}]`);
+    if (p === 'dec') {
+        console.log('[PRECISION SET TO: decimal inches]');
+    } else {
+        console.log(`[PRECISION SET TO: 1/${p}]`);
+    }
     updateScreen();
 };
 
@@ -219,7 +240,7 @@ window.handleEquals = () => {
     }
     
     let resFormatted = formatValue(res.val, res.isMeas);
-    let exprStr = items.map(i => typeof i === 'string' ? i : formatValue(i.val, i.isMeas).main).join(' ');
+    let exprStr = items.map(i => typeof i === 'string' ? i : formatValue(i.val, i.isMeas, false).main).join(' ');
     
     history.push(exprStr + " = " + resFormatted.main);
     if (history.length > 30) history.shift();
