@@ -1,14 +1,18 @@
-/**
+﻿/**
  * Imperial Construction Calculator Logic
- * Refactored for stability, logging, and duplication fixes.
+ * Refactored for stability, modularity, and separation of concerns.
  */
 
-let stack = [];            // [{val, isMeas}, '+', ...]
-let currentInput = "";     // raw string of numbers
-let currentParts = [];     // segments ["5", "6"]
-let history = [];
-let lastResult = null;
-let currentPrecision = 8; // Default precision: 1/8
+const PRECISIONS = ['dec', 8, 16, 32];
+
+const CalculatorState = {
+    stack: [],                // [{val, isMeas}, '+', ...]
+    currentInput: "",        // raw string of numbers
+    currentParts: [],         // segments ["5", "6"]
+    history: [],
+    lastResult: null,
+    currentPrecision: 8       // Default precision: 1/8
+};
 
 const mainEl = document.getElementById('main-display');
 const topEl = document.getElementById('top-display');
@@ -16,127 +20,154 @@ const histEl = document.getElementById('history-display');
 
 function logState(action) {
     console.log(`[ACTION: ${action}]`, {
-        currentInput,
-        currentParts,
-        stack,
-        lastResult,
-        topText: topEl.innerText,
-        mainText: mainEl.innerText
+        currentInput: CalculatorState.currentInput,
+        currentParts: CalculatorState.currentParts,
+        stack: CalculatorState.stack,
+        lastResult: CalculatorState.lastResult,
+        precision: CalculatorState.currentPrecision,
+        topText: topEl?.innerText,
+        mainText: mainEl?.innerText
     });
 }
 
-function gcd(a, b) { return b ? gcd(b, a % b) : a; }
+function gcd(a, b) {
+    return b ? gcd(b, a % b) : a;
+}
 
-function toNum(s) {
-    if (!s) return 0;
-    if (s.includes('/')) {
-        const [n, d] = s.split('/');
+function parseNumber(value) {
+    if (!value) return 0;
+    if (value.includes('/')) {
+        const [n, d] = value.split('/');
         return (parseFloat(n) || 0) / (parseFloat(d) || 1);
     }
-    return parseFloat(s) || 0;
+    return parseFloat(value) || 0;
 }
 
 function partsToMeasurement(parts) {
     if (parts.length === 0) return { val: 0, isMeas: false };
-    if (parts.length === 1) return { val: toNum(parts[0]), isMeas: true };
+    if (parts.length === 1) return { val: parseNumber(parts[0]), isMeas: true };
 
-    let whole = toNum(parts[0]);
-    let frac = toNum(parts[1]);
+    const whole = parseNumber(parts[0]);
+    const frac = parseNumber(parts[1]);
     return { val: whole + frac, isMeas: true };
 }
 
-function formatValue(val, isMeas, roundResult = false) {
-    if (isNaN(val)) return { main: "Error", top: "" };
-    const reduce = (n, d) => { let g = gcd(n, d); return [n / g, d / g]; };
-    const absVal = Math.abs(val);
-
-    if (!isMeas) {
-        if (!roundResult || currentPrecision === 'dec') {
-            if (currentPrecision === 'dec') {
-                let decimal = +val.toPrecision(12);
-                return { main: decimal.toString(), top: "" };
-            }
-            let total = Math.floor(absVal);
-            let rem = absVal - total;
-            let n = Math.round(rem * currentPrecision);
-            let d = currentPrecision;
-            if (n === d) { total += 1; n = 0; }
-            [n, d] = reduce(n, d);
-
-            let frac = n > 0 ? n + "/" + d : "";
-            let main = (val < 0 ? "-" : "") + (total > 0 ? total : (frac ? "" : "0"));
-            if (frac) main += (total > 0 ? " " : "") + frac;
-            return { main, top: "" };
-        }
-        const step = 1 / currentPrecision;
-        const rounded = Math.round((val + Number.EPSILON) / step) * step;
-        let total = Math.floor(Math.abs(rounded));
-        let rem = Math.abs(rounded) - total;
-        let n = Math.round(rem * currentPrecision);
-        let d = currentPrecision;
-        if (n === d) { total += 1; n = 0; }
-        [n, d] = reduce(n, d);
-        let frac = n > 0 ? n + "/" + d : "";
-        let main = (rounded < 0 ? "-" : "") + (total > 0 ? total : (frac ? "" : "0"));
-        if (frac) main += (total > 0 ? " " : "") + frac;
-        return { main, top: "" };
-    }
-    if (currentPrecision === 'dec') {
-        let decimal = +val.toPrecision(12);
-        return { main: String(decimal), top: "" };
-    }
-
-    let totalIn = Math.floor(absVal);
-    let rem = absVal - totalIn;
-    let n = Math.round(rem * currentPrecision);
-    let d = currentPrecision;
-    if (n === d) { totalIn += 1; n = 0; }
-    [n, d] = reduce(n, d);
-
-    let frac = n > 0 ? n + "/" + d : "";
-    let main = (val < 0 ? "-" : "") + (totalIn > 0 ? totalIn : (frac ? "" : "0"));
-    if (frac) main += (totalIn > 0 ? " " : "") + frac;
-
-    return { main, top: "" };
+function isDecimalPrecision() {
+    return CalculatorState.currentPrecision === 'dec';
 }
 
-function updateScreen() {
-    // TOP DISPLAY (The Pill): Only show finalized tokens from stack.
-    // If we are just starting to type a number, the pill stays empty or shows the expression so far.
-    let topText = stack.map(i => typeof i === 'string' ? i : formatValue(i.val, i.isMeas, false).main).join(' ');
-    
-    let mainText = "0";
-    if (lastResult) {
-        mainText = formatValue(lastResult.val, lastResult.isMeas, true).main;
-    } else {
-        let p = [...currentParts];
-        if (currentInput) p.push(currentInput);
-        if (p.length === 0) mainText = "0";
-        else if (p.length === 1) {
-            mainText = p[0];
-            if (!currentInput) mainText += " ";
-        } else if (p.length === 2) mainText = p[0] + " " + p[1];
+function formatFraction(value, precision) {
+    const absValue = Math.abs(value);
+    let total = Math.floor(absValue);
+    let remainder = absValue - total;
+    let numerator = Math.round(remainder * precision);
+    let denominator = precision;
+
+    if (numerator === denominator) {
+        total += 1;
+        numerator = 0;
     }
 
-    mainEl.innerText = mainText;
-    topEl.innerText = topText;
-    adjustTopDisplay();
-    histEl.innerText = history.join("\n");
-    histEl.scrollTop = histEl.scrollHeight;
+    [numerator, denominator] = [numerator, denominator].map(Number);
+    const g = gcd(numerator, denominator);
+    numerator = numerator / (g || 1);
+    denominator = denominator / (g || 1);
 
-    // Highlight active precision
-    ['dec', 8, 16, 32].forEach(p => {
+    const fraction = numerator > 0 ? `${numerator}/${denominator}` : "";
+    let main = (value < 0 ? "-" : "") + (total > 0 ? total : (fraction ? "" : "0"));
+    if (fraction) main += (total > 0 ? " " : "") + fraction;
+    return main;
+}
+
+function formatValue(value, isMeas, roundResult = false) {
+    if (isNaN(value)) return { main: "Error", top: "" };
+
+    if (!isMeas) {
+        if (isDecimalPrecision()) {
+            const decimal = +value.toPrecision(12);
+            return { main: decimal.toString(), top: "" };
+        }
+
+        if (!roundResult) {
+            return { main: formatFraction(value, CalculatorState.currentPrecision), top: "" };
+        }
+
+        const precision = CalculatorState.currentPrecision;
+        const step = 1 / precision;
+        const roundedValue = Math.round((value + Number.EPSILON) / step) * step;
+        return { main: formatFraction(roundedValue, precision), top: "" };
+    }
+
+    if (isDecimalPrecision()) {
+        const decimal = +value.toPrecision(12);
+        return { main: decimal.toString(), top: "" };
+    }
+
+    return { main: formatFraction(value, CalculatorState.currentPrecision), top: "" };
+}
+
+function getInputDisplay() {
+    const parts = [...CalculatorState.currentParts];
+    if (CalculatorState.currentInput) parts.push(CalculatorState.currentInput);
+
+    if (parts.length === 0) return "0";
+    if (parts.length === 1) return CalculatorState.currentInput ? parts[0] : `${parts[0]} `;
+    return `${parts[0]} ${parts[1]}`;
+}
+
+function getStackExpression() {
+    return CalculatorState.stack
+        .map(item => typeof item === 'string' ? item : formatValue(item.val, item.isMeas, false).main)
+        .join(' ');
+}
+
+function updatePrecisionButtons() {
+    PRECISIONS.forEach(p => {
         const btn = document.getElementById(`prec-${p}`);
-        if (btn) {
-            if (p === currentPrecision) {
-                btn.classList.add('bg-slate-600', 'text-white');
-                btn.classList.remove('bg-slate-700', 'text-slate-400');
-            } else {
-                btn.classList.remove('bg-slate-600', 'text-white');
-                btn.classList.add('bg-slate-700', 'text-slate-400');
-            }
+        if (!btn) return;
+        if (p === CalculatorState.currentPrecision) {
+            btn.classList.add('bg-slate-600', 'text-white');
+            btn.classList.remove('bg-slate-700', 'text-slate-400');
+        } else {
+            btn.classList.remove('bg-slate-600', 'text-white');
+            btn.classList.add('bg-slate-700', 'text-slate-400');
         }
     });
+}
+
+function applyOperator(result, operator, next) {
+    if (!next) return result;
+    if (operator === '+') {
+        result.val += next.val;
+        result.isMeas = result.isMeas || next.isMeas;
+    } else if (operator === '-') {
+        result.val -= next.val;
+        result.isMeas = result.isMeas || next.isMeas;
+    } else if (operator === '×' || operator === '*') {
+        result.val *= next.val;
+        result.isMeas = result.isMeas || next.isMeas;
+    } else if (operator === '÷' || operator === '/') {
+        result.val /= (next.val || 1);
+        if (result.isMeas && next.isMeas) result.isMeas = false;
+    }
+    return result;
+}
+
+function evaluateExpression(items) {
+    if (items.length === 0) return { val: 0, isMeas: false };
+    let result = { ...items[0] };
+    for (let i = 1; i < items.length; i += 2) {
+        const operator = items[i];
+        const next = items[i + 1];
+        result = applyOperator(result, operator, next);
+    }
+    return result;
+}
+
+function formatExpression(items) {
+    return items
+        .map(item => typeof item === 'string' ? item : formatValue(item.val, item.isMeas, false).main)
+        .join(' ');
 }
 
 function adjustTopDisplay() {
@@ -146,30 +177,48 @@ function adjustTopDisplay() {
     let size = parseFloat(window.getComputedStyle(topEl).fontSize) || 18;
     while (topEl.scrollWidth > topEl.clientWidth && size > minSize) {
         size -= 1;
-        topEl.style.fontSize = size + 'px';
+        topEl.style.fontSize = `${size}px`;
     }
 }
 
-function blurAll() { if (document.activeElement) document.activeElement.blur(); }
+function updateScreen() {
+    topEl.innerText = getStackExpression();
+    mainEl.innerText = CalculatorState.lastResult
+        ? formatValue(CalculatorState.lastResult.val, CalculatorState.lastResult.isMeas, true).main
+        : getInputDisplay();
 
-window.handleDigit = (d) => {
+    adjustTopDisplay();
+    histEl.innerText = CalculatorState.history.join("\n");
+    histEl.scrollTop = histEl.scrollHeight;
+    updatePrecisionButtons();
+}
+
+function blurAll() {
+    if (document.activeElement) document.activeElement.blur();
+}
+
+function resetCalculator() {
+    CalculatorState.stack = [];
+    CalculatorState.currentInput = "";
+    CalculatorState.currentParts = [];
+    CalculatorState.lastResult = null;
+}
+
+window.handleDigit = (digit) => {
     blurAll();
-    if (lastResult) {
-        // If we have a result and start typing, it's a new calc
-        stack = []; currentParts = []; currentInput = ""; lastResult = null;
-    }
-    currentInput += d;
-    logState(`handleDigit(${d})`);
+    if (CalculatorState.lastResult) resetCalculator();
+    CalculatorState.currentInput += digit;
+    logState(`handleDigit(${digit})`);
     updateScreen();
 };
 
 window.handleSpace = () => {
     blurAll();
-    if (lastResult) lastResult = null;
-    if (currentInput) {
-        if (currentParts.length < 2) {
-            currentParts.push(currentInput);
-            currentInput = "";
+    CalculatorState.lastResult = null;
+    if (CalculatorState.currentInput) {
+        if (CalculatorState.currentParts.length < 2) {
+            CalculatorState.currentParts.push(CalculatorState.currentInput);
+            CalculatorState.currentInput = "";
         } else {
             mainEl.innerText = "ERR";
             setTimeout(updateScreen, 400);
@@ -181,105 +230,112 @@ window.handleSpace = () => {
 
 window.handleSlash = () => {
     blurAll();
-    if (lastResult) lastResult = null;
-    currentInput += "/";
+    CalculatorState.lastResult = null;
+    CalculatorState.currentInput += "/";
     logState('handleSlash');
     updateScreen();
 };
 
-window.setPrecision = (p) => {
+window.setPrecision = (precision) => {
     blurAll();
-    currentPrecision = p;
-    if (p === 'dec') {
-        console.log('[PRECISION SET TO: decimal inches]');
+    CalculatorState.currentPrecision = precision;
+    if (precision === 'dec') {
+        console.log('[PRECISION SET TO: decimal]');
     } else {
-        console.log(`[PRECISION SET TO: 1/${p}]`);
+        console.log(`[PRECISION SET TO: 1/${precision}]`);
     }
     updateScreen();
 };
 
-window.handleOperator = (op) => {
+window.handleOperator = (operator) => {
     blurAll();
-    let p = [...currentParts];
-    if (currentInput) p.push(currentInput);
+    const parts = [...CalculatorState.currentParts];
+    if (CalculatorState.currentInput) parts.push(CalculatorState.currentInput);
 
-    if (p.length) {
-        stack.push(partsToMeasurement(p), op);
-        currentParts = []; currentInput = "";
-    } else if (lastResult) {
-        stack = [lastResult, op];
-        lastResult = null;
-    } else if (stack.length) {
-        stack[stack.length - 1] = op;
+    if (parts.length) {
+        CalculatorState.stack.push(partsToMeasurement(parts), operator);
+        CalculatorState.currentParts = [];
+        CalculatorState.currentInput = "";
+    } else if (CalculatorState.lastResult) {
+        CalculatorState.stack = [CalculatorState.lastResult, operator];
+        CalculatorState.lastResult = null;
+    } else if (CalculatorState.stack.length) {
+        CalculatorState.stack[CalculatorState.stack.length - 1] = operator;
     }
-    logState(`handleOperator(${op})`);
+
+    logState(`handleOperator(${operator})`);
     updateScreen();
 };
 
 window.handleEquals = () => {
     blurAll();
-    let p = [...currentParts];
-    if (currentInput) p.push(currentInput);
-    
-    let items = [...stack];
-    if (p.length) items.push(partsToMeasurement(p));
-    
+    const parts = [...CalculatorState.currentParts];
+    if (CalculatorState.currentInput) parts.push(CalculatorState.currentInput);
+
+    const items = [...CalculatorState.stack];
+    if (parts.length) items.push(partsToMeasurement(parts));
+
     if (items.length === 0) return;
     if (typeof items[items.length - 1] === 'string') items.pop();
     if (items.length === 0) return;
 
-    let res = { ...items[0] };
-    for (let i = 1; i < items.length; i += 2) {
-        let op = items[i];
-        let next = items[i + 1];
-        if (!next) break;
-        if (op === '+') { res.val += next.val; res.isMeas = res.isMeas || next.isMeas; }
-        else if (op === '-') { res.val -= next.val; res.isMeas = res.isMeas || next.isMeas; }
-        else if (op === '×' || op === '*') { res.val *= next.val; res.isMeas = res.isMeas || next.isMeas; }
-        else if (op === '÷' || op === '/') { res.val /= (next.val || 1); if (res.isMeas && next.isMeas) res.isMeas = false; }
-    }
-    
-    let resFormatted = formatValue(res.val, res.isMeas);
-    let exprStr = items.map(i => typeof i === 'string' ? i : formatValue(i.val, i.isMeas, false).main).join(' ');
-    
-    history.push(exprStr + " = " + resFormatted.main);
-    if (history.length > 30) history.shift();
-    
-    lastResult = res;
-    stack = []; currentParts = []; currentInput = "";
+    const result = evaluateExpression(items);
+    const resultText = formatValue(result.val, result.isMeas, true);
+    const expression = formatExpression(items);
+
+    CalculatorState.history.push(`${expression} = ${resultText.main}`);
+    if (CalculatorState.history.length > 30) CalculatorState.history.shift();
+
+    CalculatorState.lastResult = result;
+    CalculatorState.stack = [];
+    CalculatorState.currentParts = [];
+    CalculatorState.currentInput = "";
+
     logState('handleEquals');
     updateScreen();
 };
 
 window.handleClear = () => {
-    stack = []; currentInput = ""; currentParts = []; lastResult = null;
+    resetCalculator();
     logState('handleClear');
     updateScreen();
 };
 
 window.handleBackspace = () => {
     blurAll();
-    if (lastResult) { handleClear(); return; }
-    if (currentInput) currentInput = currentInput.slice(0, -1);
-    else if (currentParts.length) currentInput = currentParts.pop();
-    else if (stack.length) { stack.pop(); lastResult = stack.pop(); }
+    if (CalculatorState.lastResult) { window.handleClear(); return; }
+
+    if (CalculatorState.currentInput) {
+        CalculatorState.currentInput = CalculatorState.currentInput.slice(0, -1);
+    } else if (CalculatorState.currentParts.length) {
+        CalculatorState.currentInput = CalculatorState.currentParts.pop();
+    } else if (CalculatorState.stack.length) {
+        CalculatorState.stack.pop();
+        CalculatorState.lastResult = CalculatorState.stack.pop() || null;
+    }
+
     logState('handleBackspace');
     updateScreen();
 };
 
-window.addEventListener('keydown', (e) => {
-    const key = e.key;
-    if (key >= '0' && key <= '9') { e.preventDefault(); handleDigit(key); }
-    else if (key === '.') { e.preventDefault(); handleDigit('.'); }
-    else if (key === '/') { e.preventDefault(); handleSlash(); }
-    else if (key === ' ') { e.preventDefault(); handleSpace(); }
-    else if (key === '+') { e.preventDefault(); handleOperator('+'); }
-    else if (key === '-') { e.preventDefault(); handleOperator('-'); }
-    else if (key === '*') { e.preventDefault(); handleOperator('×'); }
-    else if (key === 'Enter' || key === '=') { e.preventDefault(); handleEquals(); }
-    else if (key === 'Backspace') { e.preventDefault(); handleBackspace(); }
-    else if (key === 'Escape') { e.preventDefault(); handleClear(); }
-});
+function handleKeyboardEvent(event) {
+    const key = event.key;
+    if (key >= '0' && key <= '9') { event.preventDefault(); window.handleDigit(key); }
+    else if (key === '.') { event.preventDefault(); window.handleDigit('.'); }
+    else if (key === '/') { event.preventDefault(); window.handleSlash(); }
+    else if (key === ' ') { event.preventDefault(); window.handleSpace(); }
+    else if (key === '+') { event.preventDefault(); window.handleOperator('+'); }
+    else if (key === '-') { event.preventDefault(); window.handleOperator('-'); }
+    else if (key === '*') { event.preventDefault(); window.handleOperator('×'); }
+    else if (key === 'Enter' || key === '=') { event.preventDefault(); window.handleEquals(); }
+    else if (key === 'Backspace') { event.preventDefault(); window.handleBackspace(); }
+    else if (key === 'Escape') { event.preventDefault(); window.handleClear(); }
+}
 
-window.addEventListener('DOMContentLoaded', updateScreen);
-window.addEventListener('resize', updateScreen);
+function initializeCalculator() {
+    window.addEventListener('keydown', handleKeyboardEvent);
+    window.addEventListener('resize', updateScreen);
+    updateScreen();
+}
+
+initializeCalculator();
