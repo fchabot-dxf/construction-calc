@@ -13,7 +13,9 @@ const CalculatorState = {
     history: [],
     lastResult: null,
     currentPrecision: 8,      // Default precision: 1/8
-    fnActive: false           // FN shift: right column reads as units
+    fnActive: false,          // FN shift: right column reads as units
+    inputUnit: 'in',          // what a bare typed number means
+    historyOpen: false        // history overlays the LCD on demand
 };
 
 const mainEl = document.getElementById('main-display');
@@ -55,19 +57,25 @@ function partsToMeasurement(parts) {
     });
 
     // A term typed without a unit borrows the next unit to its right, so
-    // "5' 6 1/2\"" reads the 6 as inches. Nothing on the right means inches,
-    // which is what a bare "5 1/2" has always meant here.
+    // "5' 6 1/2\"" reads the 6 as inches. Nothing on the right falls back to
+    // the selected input unit, which starts as the inch.
     let pending = null;
     for (let i = terms.length - 1; i >= 0; i--) {
         if (terms[i].unit) pending = terms[i].unit;
         else terms[i].unit = pending;
     }
 
-    const val = terms.reduce((sum, term) => sum + term.value * (term.unit ? term.unit.inches : 1), 0);
+    const fallback = findUnit(CalculatorState.inputUnit).inches;
+    const val = terms.reduce((sum, term) => sum + term.value * (term.unit ? term.unit.inches : fallback), 0);
     return { val, isMeas: true, raw };
 }
 
+function inputSystem() {
+    return findUnit(CalculatorState.inputUnit).system;
+}
+
 function isDecimalPrecision() {
+    if (inputSystem() === 'metric') return true;
     return CalculatorState.currentPrecision === 'dec';
 }
 
@@ -245,12 +253,32 @@ function renderConversions() {
     const host = document.getElementById('conv-strip');
     if (!host) return;
 
-    const value = getConversionValue();
-    host.innerHTML = LENGTH_UNITS.map(unit => `
-        <div class="conv-cell${unit.wide ? ' col-span-2' : ''}">
+    const value = getConversionValue() || 0;
+    const units = unitsInSystem(oppositeSystem(inputSystem()));
+
+    host.style.gridTemplateColumns = `repeat(${units.length}, minmax(0, 1fr))`;
+    host.innerHTML = units.map(unit => `
+        <div class="conv-cell">
             <span class="conv-label">${unit.label}</span>
-            <span class="conv-value">${value === null ? '—' : formatInUnit(value, unit)}</span>
+            <span class="conv-value">${formatInUnit(value, unit)}</span>
         </div>`).join('');
+}
+
+// Both rows are rebuilt from the declaration: the system segments, then
+// the units that live in the selected system.
+function renderInputBar() {
+    const seg = document.getElementById('system-toggle');
+    const chips = document.getElementById('unit-chips');
+    if (!seg || !chips) return;
+
+    const active = inputSystem();
+    seg.innerHTML = Object.entries(SYSTEMS).map(([id, system]) =>
+        `<button onclick="setSystem('${id}')" class="lcd-seg-btn${id === active ? ' on' : ''}">${id}</button>`
+    ).join('');
+
+    chips.innerHTML = inputUnits(active).map(unit =>
+        `<button onclick="setInputUnit('${unit.id}')" class="lcd-chip${unit.id === CalculatorState.inputUnit ? ' on' : ''}">${unit.legend}</button>`
+    ).join('');
 }
 
 function adjustTopDisplay() {
@@ -275,17 +303,23 @@ function updateScreen() {
         : getInputDisplay();
 
     adjustTopDisplay();
-    histEl.innerText = CalculatorState.history.join("\n");
+    histEl.innerText = CalculatorState.history.length
+        ? CalculatorState.history.join("\n")
+        : "no history yet";
     histEl.scrollTop = histEl.scrollHeight;
+    document.body.classList.toggle('history-open', CalculatorState.historyOpen);
     updatePrecisionButtons();
+    renderInputBar();
     renderConversions();
     document.body.classList.toggle('fn-active', CalculatorState.fnActive);
 }
 
 function blurAll() {
     if (document.activeElement) document.activeElement.blur();
-    // FN is sticky-shift: any key press spends it.
+    // FN is sticky-shift: any key press spends it, and any key press
+    // also puts the history panel away.
     CalculatorState.fnActive = false;
+    CalculatorState.historyOpen = false;
 }
 
 function resetCalculator() {
@@ -356,6 +390,25 @@ window.handleUnitChar = (char) => {
     blurAll();
     if (CalculatorState.lastResult) resetCalculator();
     CalculatorState.currentInput += char;
+    updateScreen();
+};
+
+window.toggleHistory = () => {
+    const next = !CalculatorState.historyOpen;
+    blurAll();
+    CalculatorState.historyOpen = next;
+    updateScreen();
+};
+
+window.setSystem = (system) => {
+    blurAll();
+    CalculatorState.inputUnit = SYSTEMS[system].input;
+    updateScreen();
+};
+
+window.setInputUnit = (unitId) => {
+    blurAll();
+    CalculatorState.inputUnit = unitId;
     updateScreen();
 };
 
@@ -465,7 +518,7 @@ function wireFnKeys() {
         const btn = document.querySelector(`[data-unit="${unitId}"]`);
         if (!btn) return;
 
-        btn.querySelector('.fn-legend').innerText = findUnit(unitId).aliases[0];
+        btn.querySelector('.fn-legend').innerText = findUnit(unitId).legend;
         const normalClick = btn.onclick;
         btn.onclick = (event) => {
             if (CalculatorState.fnActive) { window.handleUnit(unitId); return; }

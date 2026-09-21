@@ -11,18 +11,27 @@
 
     <div class="w-full max-w-[480px] h-full bg-slate-900 rounded-none shadow-none p-4 sm:p-8 border-0 flex flex-col overflow-x-visible three-d mx-auto">
         <!-- LCD Screen -->
-        <div class="lcd-bg relative rounded-lg p-2 md:p-4 shadow-inner mb-2 flex flex-col justify-end h-[15%] min-h-[130px] md:min-h-40 border-b-4 border-slate-700">
-            <div class="flex justify-between items-start text-slate-700 lcd-font text-[10px] font-bold uppercase opacity-80 mb-2 min-h-[42px]">
-                <span id="history-display" class="whitespace-pre-wrap max-w-[55%] overflow-y-auto max-h-16 sm:max-h-20 pr-2 text-sm font-semibold no-scrollbar"></span>
-                <span id="top-display" class="inline-block text-right text-slate-900 bg-slate-800/10 px-2 rounded-lg text-lg md:text-2xl font-extrabold overflow-hidden whitespace-nowrap max-w-[40%]"></span>
+        <div class="lcd-bg relative rounded-lg p-2 md:p-4 shadow-inner mb-2 flex flex-col justify-end min-h-[230px] border-b-4 border-slate-700">
+            <div class="flex justify-between items-center gap-2 text-slate-700 lcd-font mb-1 min-h-[30px]">
+                <button onclick="toggleHistory()" id="hist-btn" class="lcd-hist-btn" title="History" aria-label="History"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 6.8v5.4l3.6 2.1"/></svg></button>
+                <span id="top-display" class="inline-block text-right text-slate-900 bg-slate-800/10 px-2 rounded-lg text-lg md:text-2xl font-extrabold overflow-hidden whitespace-nowrap max-w-[85%]"></span>
             </div>
-            <div id="main-display" class="text-slate-900 lcd-font text-5xl md:text-8xl lg:text-9xl font-extrabold text-right tracking-tight overflow-x-visible overflow-y-hidden leading-none whitespace-pre py-4 pr-6">
+
+            <!-- History is summoned over the LCD rather than holding a slot in it -->
+            <div id="history-display" class="lcd-history no-scrollbar"></div>
+            <div id="main-display" class="text-slate-900 lcd-font text-5xl md:text-7xl font-extrabold text-right tracking-tight overflow-x-visible overflow-y-hidden leading-none whitespace-pre py-2 pr-6">
                 0
             </div>
-        </div>
 
-        <!-- Live conversion strip: built from LENGTH_UNITS -->
-        <div id="conv-strip" class="grid grid-cols-4 gap-1 mb-2"></div>
+            <!-- What the typed number IS: the system, then the units within it -->
+            <div class="lcd-rule">
+                <div id="system-toggle" class="lcd-seg"></div>
+                <div id="unit-chips" class="lcd-chips"></div>
+            </div>
+
+            <!-- The same value in the other system -->
+            <div id="conv-strip" class="lcd-conversions"></div>
+        </div>
 
         <!-- Precision Toggle -->
         <div class="flex justify-center gap-2 mb-2 bg-slate-800/50 p-1 rounded-lg">
@@ -33,7 +42,7 @@
         </div>
 
         <!-- Keypad. The right column carries a second, FN-shifted unit label. -->
-        <div class="grid grid-cols-4 gap-1 flex-grow min-h-0">
+        <div class="grid grid-cols-4 grid-rows-[repeat(5,minmax(0,1fr))_auto] gap-1 flex-grow min-h-0">
             <button onclick="handleClear()" class="py-3 md:py-4 text-2xl md:text-3xl font-semibold rounded-lg bg-red-600 text-white hover:bg-red-500 active:scale-95 transition-transform">AC</button>
             <!-- & separates whole inches and fraction -->
             <button onclick="handleSpace()" title="whole inches / fraction separator" class="py-3 md:py-4 text-2xl md:text-3xl font-semibold rounded-lg bg-slate-500 text-white hover:bg-slate-400 active:scale-95 transition-transform">&</button>

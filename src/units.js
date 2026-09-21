@@ -4,31 +4,47 @@
  * The calculator's base unit is the inch, so a bare number keeps meaning
  * exactly what it meant before — a unit suffix only scales it.
  *
+ *   system   which half of the conversion strip this belongs to
  *   inches   how many inches one of this unit is
  *   fmt      how a value renders here: 'dec' | 'frac' | 'ftin'
  *   label    caption in the conversion strip
+ *   legend   FN label on the keypad; omitted = no key
  *   aliases  every spelling accepted in typed input; [] = display only
- *   wide     strip cell spans two columns
  *
- * Adding a unit is one row: the strip and the unit drawer both build
+ * Adding a unit is one row: the strip and the FN legends both build
  * themselves from this list.
  */
 const LENGTH_UNITS = [
-    { id: 'mm', inches: 1 / 25.4, fmt: 'dec', label: 'mm',
+    { id: 'mm', system: 'metric', inches: 1 / 25.4, fmt: 'dec', label: 'mm', legend: 'mm',
       aliases: ['mm', 'millimetres', 'millimeters', 'millimetre', 'millimeter'] },
-    { id: 'cm', inches: 1 / 2.54, fmt: 'dec', label: 'cm',
+    { id: 'cm', system: 'metric', inches: 1 / 2.54, fmt: 'dec', label: 'cm', legend: 'cm',
       aliases: ['cm', 'centimetres', 'centimeters', 'centimetre', 'centimeter'] },
-    { id: 'm', inches: 1 / 0.0254, fmt: 'dec', label: 'm',
+    { id: 'm', system: 'metric', inches: 1 / 0.0254, fmt: 'dec', label: 'm', legend: 'm',
       aliases: ['m', 'metres', 'meters', 'metre', 'meter'] },
-    { id: 'ft', inches: 12, fmt: 'dec', label: 'feet',
-      aliases: ["'", '′', 'feet', 'foot', 'ft'] },
-    { id: 'in', inches: 1, fmt: 'dec', label: 'inch',
-      aliases: ['"', '″', 'inches', 'inch', 'in'] },
+
+    // legend reads "in"/"ft" rather than " and ', which vanish at 10px
+    { id: 'in', system: 'imperial', inches: 1, fmt: 'dec', label: 'inch', legend: 'in',
+      aliases: ['"', '\u2033', 'inches', 'inch', 'in'] },
+    { id: 'ft', system: 'imperial', inches: 12, fmt: 'dec', label: 'feet', legend: 'ft',
+      aliases: ["'", '\u2032', 'feet', 'foot', 'ft'] },
 
     // Display only: same ratio as a unit above, rendered differently.
-    { id: 'infr', inches: 1, fmt: 'frac', label: 'in frac', aliases: [] },
-    { id: 'ftin', inches: 12, fmt: 'ftin', label: 'ft-in', aliases: [], wide: true },
+    { id: 'infr', system: 'imperial', inches: 1, fmt: 'frac', label: 'in frac', aliases: [] },
+    { id: 'ftin', system: 'imperial', inches: 12, fmt: 'ftin', label: 'ft-in', aliases: [] },
 ];
+
+/**
+ * The two input systems. `input` is what a bare typed number means while
+ * that system is selected, and `label` is the badge on the display.
+ */
+const SYSTEMS = {
+    imperial: { label: 'INCH', input: 'in' },
+    metric: { label: 'MM', input: 'mm' },
+};
+
+function oppositeSystem(system) {
+    return system === 'metric' ? 'imperial' : 'metric';
+}
 
 // The FN legends on the right-hand keypad column, top to bottom.
 // Each key inserts its unit's aliases[0].
@@ -42,6 +58,15 @@ const UNIT_ALIASES = LENGTH_UNITS
 
 function findUnit(id) {
     return LENGTH_UNITS.find(unit => unit.id === id);
+}
+
+function unitsInSystem(system) {
+    return LENGTH_UNITS.filter(unit => unit.system === system);
+}
+
+// Units you can actually type in; the display-only formats have no legend.
+function inputUnits(system) {
+    return unitsInSystem(system).filter(unit => unit.legend);
 }
 
 /**
