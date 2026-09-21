@@ -11,22 +11,25 @@
 
     <div class="w-full max-w-[480px] h-full bg-slate-900 rounded-none shadow-none p-4 sm:p-8 border-0 flex flex-col overflow-x-visible three-d mx-auto">
         <!-- LCD Screen -->
-        <div class="lcd-bg relative rounded-lg p-2 md:p-4 shadow-inner mb-2 flex flex-col justify-end min-h-[230px] border-b-4 border-slate-700">
-            <div class="flex justify-between items-center gap-2 text-slate-700 lcd-font mb-1 min-h-[30px]">
+        <!-- LCD Screen: mode on top, what you typed, what it converts to -->
+        <div class="lcd-bg relative rounded-lg p-2 md:p-4 shadow-inner mb-2 flex flex-col min-h-[230px] border-b-4 border-slate-700">
+            <!-- What a bare typed number means, plus the history handle -->
+            <div class="lcd-topbar">
                 <button onclick="toggleHistory()" id="hist-btn" class="lcd-hist-btn" title="History" aria-label="History"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 6.8v5.4l3.6 2.1"/></svg></button>
-                <span id="top-display" class="inline-block text-right text-slate-900 bg-slate-800/10 px-2 rounded-lg text-lg md:text-2xl font-extrabold overflow-hidden whitespace-nowrap max-w-[85%]"></span>
+                <div id="system-toggle" class="lcd-seg"></div>
+                <div id="unit-chips" class="lcd-chips"></div>
             </div>
 
             <!-- History is summoned over the LCD rather than holding a slot in it -->
             <div id="history-display" class="lcd-history no-scrollbar"></div>
-            <div id="main-display" class="text-slate-900 lcd-font text-5xl md:text-7xl font-extrabold text-right tracking-tight overflow-x-visible overflow-y-hidden leading-none whitespace-pre py-2 pr-6">
-                0
-            </div>
 
-            <!-- What the typed number IS: the system, then the units within it -->
-            <div class="lcd-rule">
-                <div id="system-toggle" class="lcd-seg"></div>
-                <div id="unit-chips" class="lcd-chips"></div>
+            <div class="flex-1 flex flex-col justify-end min-h-0">
+                <div class="flex justify-end lcd-font min-h-[26px]">
+                    <span id="top-display" class="inline-block text-right text-slate-900 bg-slate-800/10 px-2 rounded-lg text-lg md:text-2xl font-extrabold overflow-hidden whitespace-nowrap max-w-full"></span>
+                </div>
+                <div id="main-display" class="text-slate-900 lcd-font text-5xl md:text-7xl font-extrabold text-right tracking-tight overflow-x-visible overflow-y-hidden leading-none whitespace-pre py-2 pr-6">
+                    0
+                </div>
             </div>
 
             <!-- The same value in the other system -->

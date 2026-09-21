@@ -80,13 +80,14 @@ body.history-open .lcd-hist-btn {
 }
 
 /* The readout lives on the LCD, so it is drawn in LCD ink, not app chrome */
-.lcd-rule {
+.lcd-topbar {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-top: 6px;
-    padding-top: 6px;
-    border-top: 1px solid rgba(15, 23, 42, 0.22);
+    gap: 8px;
+    flex-wrap: wrap;
+    padding-bottom: 6px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.22);
 }
 
 .lcd-seg {
@@ -135,6 +136,8 @@ body.history-open .lcd-hist-btn {
     display: grid;
     gap: 2px 12px;
     margin-top: 7px;
+    padding-top: 7px;
+    border-top: 1px solid rgba(15, 23, 42, 0.22);
 }
 
 .conv-cell {
