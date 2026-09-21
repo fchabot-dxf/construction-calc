@@ -56,6 +56,9 @@ function partsToMeasurement(parts) {
         return { value: parseNumber(number), unit };
     });
 
+    const shorthand = positionalInches(parts, terms, inputSystem());
+    if (shorthand) return { val: shorthand.val, isMeas: true, raw: shorthand.raw };
+
     // A term typed without a unit borrows the next unit to its right, so
     // "5' 6 1/2\"" reads the 6 as inches. Nothing on the right falls back to
     // the selected input unit, which starts as the inch.
