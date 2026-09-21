@@ -21,6 +21,9 @@
             </div>
         </div>
 
+        <!-- Live conversion strip: built from LENGTH_UNITS -->
+        <div id="conv-strip" class="grid grid-cols-4 gap-1 mb-2"></div>
+
         <!-- Precision Toggle -->
         <div class="flex justify-center gap-2 mb-2 bg-slate-800/50 p-1 rounded-lg">
             <button onclick="setPrecision('dec')" id="prec-dec" class="flex-1 py-1 text-xs md:text-sm font-bold rounded bg-slate-700 text-slate-400 hover:text-white transition-colors border-0 shadow-none !text-[12px] uppercase">0.0</button>
@@ -29,38 +32,40 @@
             <button onclick="setPrecision(32)" id="prec-32" class="flex-1 py-1 text-xs md:text-sm font-bold rounded bg-slate-600 text-white transition-colors border-0 shadow-none !text-[12px] uppercase">1/32</button>
         </div>
 
-        <!-- Keypad -->
+        <!-- Keypad. The right column carries a second, FN-shifted unit label. -->
         <div class="grid grid-cols-4 gap-1 flex-grow min-h-0">
             <button onclick="handleClear()" class="py-3 md:py-4 text-2xl md:text-3xl font-semibold rounded-lg bg-red-600 text-white hover:bg-red-500 active:scale-95 transition-transform">AC</button>
             <!-- & separates whole inches and fraction -->
             <button onclick="handleSpace()" title="whole inches / fraction separator" class="py-3 md:py-4 text-2xl md:text-3xl font-semibold rounded-lg bg-slate-500 text-white hover:bg-slate-400 active:scale-95 transition-transform">&</button>
             <!-- slash for fractions -->
             <button onclick="handleSlash()" class="py-2 md:py-3 text-xl md:text-2xl font-semibold rounded-lg bg-slate-500 text-white hover:bg-slate-400 active:scale-95 transition-transform">/</button>
-            <button onclick="handleBackspace()" class="py-2 md:py-3 text-xl md:text-2xl font-semibold rounded-lg bg-slate-600 text-white hover:bg-slate-500 active:scale-95 transition-transform">⌫</button>
+            <button onclick="handleBackspace()" data-unit="in" class="fn-key py-2 md:py-3 text-xl md:text-2xl font-semibold rounded-lg bg-slate-600 text-white hover:bg-slate-500 active:scale-95 transition-transform"><span class="fn-legend"></span><span class="fn-main">⌫</span></button>
 
             <button onclick="handleDigit('7')" class="py-3 md:py-4 text-lg md:text-xl font-semibold rounded-lg bg-slate-200 text-slate-900 hover:bg-white active:scale-95 transition-transform">7</button>
             <button onclick="handleDigit('8')" class="py-3 md:py-4 text-lg md:text-xl font-semibold rounded-lg bg-slate-200 text-slate-900 hover:bg-white active:scale-95 transition-transform">8</button>
             <button onclick="handleDigit('9')" class="py-3 md:py-4 text-lg md:text-xl font-semibold rounded-lg bg-slate-200 text-slate-900 hover:bg-white active:scale-95 transition-transform">9</button>
-            <button onclick="handleOperator('÷')" class="py-3 md:py-4 text-xl md:text-2xl font-semibold rounded-lg bg-slate-700 text-white hover:bg-slate-600 active:scale-95 transition-transform">÷</button>
+            <button onclick="handleOperator('÷')" data-unit="ft" class="fn-key py-3 md:py-4 text-xl md:text-2xl font-semibold rounded-lg bg-slate-700 text-white hover:bg-slate-600 active:scale-95 transition-transform"><span class="fn-legend"></span><span class="fn-main">÷</span></button>
 
             <button onclick="handleDigit('4')" class="py-3 md:py-4 text-lg md:text-xl font-semibold rounded-lg bg-slate-200 text-slate-900 hover:bg-white active:scale-95 transition-transform">4</button>
             <button onclick="handleDigit('5')" class="py-3 md:py-4 text-lg md:text-xl font-semibold rounded-lg bg-slate-200 text-slate-900 hover:bg-white active:scale-95 transition-transform">5</button>
             <button onclick="handleDigit('6')" class="py-3 md:py-4 text-lg md:text-xl font-semibold rounded-lg bg-slate-200 text-slate-900 hover:bg-white active:scale-95 transition-transform">6</button>
-            <button onclick="handleOperator('×')" class="py-3 md:py-4 text-xl md:text-2xl font-semibold rounded-lg bg-slate-700 text-white hover:bg-slate-600 active:scale-95 transition-transform">×</button>
+            <button onclick="handleOperator('×')" data-unit="mm" class="fn-key py-3 md:py-4 text-xl md:text-2xl font-semibold rounded-lg bg-slate-700 text-white hover:bg-slate-600 active:scale-95 transition-transform"><span class="fn-legend"></span><span class="fn-main">×</span></button>
 
             <button onclick="handleDigit('1')" class="py-2 md:py-3 text-lg md:text-xl font-semibold rounded-lg bg-slate-200 text-slate-900 hover:bg-white active:scale-95 transition-transform">1</button>
             <button onclick="handleDigit('2')" class="py-2 md:py-3 text-lg md:text-xl font-semibold rounded-lg bg-slate-200 text-slate-900 hover:bg-white active:scale-95 transition-transform">2</button>
             <button onclick="handleDigit('3')" class="py-2 md:py-3 text-lg md:text-xl font-semibold rounded-lg bg-slate-200 text-slate-900 hover:bg-white active:scale-95 transition-transform">3</button>
-            <button onclick="handleOperator('-')" class="py-2 md:py-3 text-xl md:text-2xl font-semibold rounded-lg bg-slate-700 text-white hover:bg-slate-600 active:scale-95 transition-transform">-</button>
+            <button onclick="handleOperator('-')" data-unit="cm" class="fn-key py-2 md:py-3 text-xl md:text-2xl font-semibold rounded-lg bg-slate-700 text-white hover:bg-slate-600 active:scale-95 transition-transform"><span class="fn-legend"></span><span class="fn-main">-</span></button>
 
             <button onclick="handleEquals()" class="py-2 md:py-3 text-xl md:text-2xl font-semibold rounded-lg bg-amber-600 text-white hover:bg-amber-500 active:scale-95 transition-transform">=</button>
             <button onclick="handleDigit('0')" class="py-2 md:py-3 text-lg md:text-xl font-semibold rounded-lg bg-slate-200 text-slate-900 hover:bg-white active:scale-95 transition-transform">0</button>
             <button onclick="handleDigit('.')" class="py-2 md:py-3 text-lg md:text-xl font-black rounded-lg bg-slate-200 text-slate-900 hover:bg-white active:scale-95 transition-transform">.</button>
-            <button onclick="handleOperator('+')" class="py-2 md:py-3 text-xl md:text-2xl font-semibold rounded-lg bg-slate-700 text-white hover:bg-slate-600 active:scale-95 transition-transform">+</button>
-            <div class="col-span-4 h-10"></div>
+            <button onclick="handleOperator('+')" data-unit="m" class="fn-key py-2 md:py-3 text-xl md:text-2xl font-semibold rounded-lg bg-slate-700 text-white hover:bg-slate-600 active:scale-95 transition-transform"><span class="fn-legend"></span><span class="fn-main">+</span></button>
+
+            <button onclick="toggleFn()" id="fn-key" class="col-span-4 h-10 rounded-lg bg-slate-700 text-amber-400 hover:bg-slate-600 active:scale-95 transition-transform border-0 shadow-none !text-[13px] font-bold uppercase tracking-widest">FN · Units</button>
         </div>
     </div>
 
+    <script src="units.js"></script>
     <script src="calculator.js"></script>
 </body>
 </html>

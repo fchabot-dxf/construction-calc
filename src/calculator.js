@@ -4,14 +4,16 @@
  */
 
 const PRECISIONS = ['dec', 8, 16, 32];
+const MAX_PARTS = 4;          // enough for "5' 6 1/2\"" and a spare
 
 const CalculatorState = {
     stack: [],                // [{val, isMeas}, '+', ...]
     currentInput: "",        // raw string of numbers
-    currentParts: [],         // segments ["5", "6"]
+    currentParts: [],         // segments ["5'", "6", "1/2\""]
     history: [],
     lastResult: null,
-    currentPrecision: 8       // Default precision: 1/8
+    currentPrecision: 8,      // Default precision: 1/8
+    fnActive: false           // FN shift: right column reads as units
 };
 
 const mainEl = document.getElementById('main-display');
@@ -46,11 +48,23 @@ function parseNumber(value) {
 function partsToMeasurement(parts) {
     const raw = parts.join(' ');
     if (parts.length === 0) return { val: 0, isMeas: false, raw };
-    if (parts.length === 1) return { val: parseNumber(parts[0]), isMeas: true, raw };
 
-    const whole = parseNumber(parts[0]);
-    const frac = parseNumber(parts[1]);
-    return { val: whole + frac, isMeas: true, raw };
+    const terms = parts.map(part => {
+        const { number, unit } = splitUnitSuffix(part);
+        return { value: parseNumber(number), unit };
+    });
+
+    // A term typed without a unit borrows the next unit to its right, so
+    // "5' 6 1/2\"" reads the 6 as inches. Nothing on the right means inches,
+    // which is what a bare "5 1/2" has always meant here.
+    let pending = null;
+    for (let i = terms.length - 1; i >= 0; i--) {
+        if (terms[i].unit) pending = terms[i].unit;
+        else terms[i].unit = pending;
+    }
+
+    const val = terms.reduce((sum, term) => sum + term.value * (term.unit ? term.unit.inches : 1), 0);
+    return { val, isMeas: true, raw };
 }
 
 function isDecimalPrecision() {
@@ -78,6 +92,28 @@ function formatFraction(value, precision) {
     let main = (value < 0 ? "-" : "") + (total > 0 ? total : (fraction ? "" : "0"));
     if (fraction) main += (total > 0 ? " " : "") + fraction;
     return main;
+}
+
+function formatFeetInches(inchValue, precision) {
+    const sign = inchValue < 0 ? "-" : "";
+    // Snap to the grid before splitting, or 11.99" rounds up to 5' 12".
+    const total = precision === 'dec'
+        ? Math.round(Math.abs(inchValue) * 1e4) / 1e4
+        : Math.round(Math.abs(inchValue) * precision) / precision;
+
+    const feet = Math.floor(total / 12 + 1e-9);
+    const inches = total - feet * 12;
+    const inchText = precision === 'dec' ? formatDecimal(inches) : formatFraction(inches, precision);
+    return `${sign}${feet}' ${inchText}"`;
+}
+
+function formatInUnit(inchValue, unit) {
+    const precision = CalculatorState.currentPrecision;
+    if (unit.fmt === 'ftin') return formatFeetInches(inchValue, precision);
+
+    const value = inchValue / unit.inches;
+    if (unit.fmt === 'frac' && precision !== 'dec') return formatFraction(value, precision);
+    return formatDecimal(value);
 }
 
 function formatValue(value, isMeas, roundResult = false) {
@@ -112,8 +148,8 @@ function getInputDisplay() {
     if (CalculatorState.currentInput) parts.push(CalculatorState.currentInput);
 
     if (parts.length === 0) return "0";
-    if (parts.length === 1) return CalculatorState.currentInput ? parts[0] : `${parts[0]} `;
-    return `${parts[0]} ${parts[1]}`;
+    const text = parts.join(' ');
+    return CalculatorState.currentInput ? text : `${text} `;
 }
 
 function getStackExpression() {
@@ -184,13 +220,37 @@ function formatExpression(items) {
         .join(' ');
 }
 
-function computeLiveResult() {
+function evaluateLive() {
     const items = getLiveItems();
     if (items.length === 0) return null;
     if (typeof items[items.length - 1] === 'string') items.pop();
     if (items.length === 0) return null;
-    const result = evaluateExpression(items);
-    return formatValue(result.val, result.isMeas, true).main;
+    return evaluateExpression(items);
+}
+
+function computeLiveResult() {
+    const result = evaluateLive();
+    return result ? formatValue(result.val, result.isMeas, true).main : null;
+}
+
+// Inches to feed the conversion strip: the settled answer if there is one,
+// otherwise whatever is being typed right now.
+function getConversionValue() {
+    if (CalculatorState.lastResult) return CalculatorState.lastResult.val;
+    const result = evaluateLive();
+    return result ? result.val : null;
+}
+
+function renderConversions() {
+    const host = document.getElementById('conv-strip');
+    if (!host) return;
+
+    const value = getConversionValue();
+    host.innerHTML = LENGTH_UNITS.map(unit => `
+        <div class="conv-cell${unit.wide ? ' col-span-2' : ''}">
+            <span class="conv-label">${unit.label}</span>
+            <span class="conv-value">${value === null ? '—' : formatInUnit(value, unit)}</span>
+        </div>`).join('');
 }
 
 function adjustTopDisplay() {
@@ -218,10 +278,14 @@ function updateScreen() {
     histEl.innerText = CalculatorState.history.join("\n");
     histEl.scrollTop = histEl.scrollHeight;
     updatePrecisionButtons();
+    renderConversions();
+    document.body.classList.toggle('fn-active', CalculatorState.fnActive);
 }
 
 function blurAll() {
     if (document.activeElement) document.activeElement.blur();
+    // FN is sticky-shift: any key press spends it.
+    CalculatorState.fnActive = false;
 }
 
 function resetCalculator() {
@@ -243,7 +307,7 @@ window.handleSpace = () => {
     blurAll();
     CalculatorState.lastResult = null;
     if (CalculatorState.currentInput) {
-        if (CalculatorState.currentParts.length < 2) {
+        if (CalculatorState.currentParts.length < MAX_PARTS) {
             CalculatorState.currentParts.push(CalculatorState.currentInput);
             CalculatorState.currentInput = "";
         } else {
@@ -260,6 +324,38 @@ window.handleSlash = () => {
     CalculatorState.lastResult = null;
     CalculatorState.currentInput += "/";
     logState('handleSlash');
+    updateScreen();
+};
+
+window.toggleFn = () => {
+    const next = !CalculatorState.fnActive;
+    blurAll();
+    CalculatorState.fnActive = next;
+    updateScreen();
+};
+
+// A unit closes the term it sits on, so the next digit starts a fresh one
+// and "5' 6\"" lands as two terms rather than one nonsense token.
+window.handleUnit = (unitId) => {
+    blurAll();
+    if (CalculatorState.lastResult) resetCalculator();
+
+    CalculatorState.currentInput += findUnit(unitId).aliases[0];
+    if (CalculatorState.currentParts.length < MAX_PARTS) {
+        CalculatorState.currentParts.push(CalculatorState.currentInput);
+        CalculatorState.currentInput = "";
+    }
+
+    logState(`handleUnit(${unitId})`);
+    updateScreen();
+};
+
+// Typed letters build a unit up a character at a time ("m", "mm"), so they
+// only append — the parser reads the suffix when the term is evaluated.
+window.handleUnitChar = (char) => {
+    blurAll();
+    if (CalculatorState.lastResult) resetCalculator();
+    CalculatorState.currentInput += char;
     updateScreen();
 };
 
@@ -357,11 +453,31 @@ function handleKeyboardEvent(event) {
     else if (key === 'Enter' || key === '=') { event.preventDefault(); window.handleEquals(); }
     else if (key === 'Backspace') { event.preventDefault(); window.handleBackspace(); }
     else if (key === 'Escape') { event.preventDefault(); window.handleClear(); }
+    else if (key === '"') { event.preventDefault(); window.handleUnit('in'); }
+    else if (key === "'") { event.preventDefault(); window.handleUnit('ft'); }
+    else if (/^[a-z]$/i.test(key)) { event.preventDefault(); window.handleUnitChar(key.toLowerCase()); }
+}
+
+// Print each unit legend on its keypad key and let FN reroute the click,
+// leaving the key's own inline handler untouched.
+function wireFnKeys() {
+    UNIT_KEYS.forEach(unitId => {
+        const btn = document.querySelector(`[data-unit="${unitId}"]`);
+        if (!btn) return;
+
+        btn.querySelector('.fn-legend').innerText = findUnit(unitId).aliases[0];
+        const normalClick = btn.onclick;
+        btn.onclick = (event) => {
+            if (CalculatorState.fnActive) { window.handleUnit(unitId); return; }
+            normalClick.call(btn, event);
+        };
+    });
 }
 
 function initializeCalculator() {
     window.addEventListener('keydown', handleKeyboardEvent);
     window.addEventListener('resize', updateScreen);
+    wireFnKeys();
     updateScreen();
 }
 
