@@ -7,12 +7,12 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-slate-900 h-screen flex justify-start items-end p-0">
+<body class="bg-slate-900 app-viewport flex justify-start items-end p-0">
 
-    <div class="w-full max-w-[480px] h-full bg-slate-900 rounded-none shadow-none p-4 sm:p-8 border-0 flex flex-col overflow-x-visible three-d mx-auto">
+    <div class="w-full max-w-[720px] h-full bg-slate-900 rounded-none shadow-none p-3 sm:p-4 pb-[calc(0.6rem+env(safe-area-inset-bottom,0px))] border-0 flex flex-col overflow-x-visible three-d mx-auto">
         <!-- LCD Screen -->
         <!-- LCD Screen: mode on top, what you typed, what it converts to -->
-        <div class="lcd-bg relative rounded-lg p-2 md:p-4 shadow-inner mb-2 flex flex-col min-h-[230px] border-b-4 border-slate-700">
+        <div class="lcd-bg relative rounded-lg p-2 md:p-4 shadow-inner mb-2 flex flex-col min-h-[188px] sm:min-h-[230px] border-b-4 border-slate-700">
             <!-- What a bare typed number means, plus the history handle -->
             <div class="lcd-topbar">
                 <button onclick="toggleHistory()" id="hist-btn" class="lcd-hist-btn" title="History" aria-label="History"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 6.8v5.4l3.6 2.1"/></svg></button>

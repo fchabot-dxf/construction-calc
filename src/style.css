@@ -1,5 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
 
+/* 100vh spans under the browser's own chrome on mobile, which pushed the
+   bottom keypad rows out of sight; dvh is the height actually on screen */
+.app-viewport {
+    height: 100vh;
+    height: 100dvh;
+}
+
 .lcd-font {
     font-family: 'JetBrains+Mono', monospace;
 }
