@@ -33,6 +33,14 @@ button.bg-slate-200 {
     background-color: rgb(210 210 210 / var(--tw-bg-opacity));
 }
 
+/* the unit riding on the big number */
+.main-unit {
+    font-size: 0.4em;
+    font-weight: 700;
+    margin-left: 0.14em;
+    opacity: 0.6;
+}
+
 /* History: out of the layout, summoned over the LCD */
 .lcd-hist-btn {
     line-height: 0;

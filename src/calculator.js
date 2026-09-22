@@ -165,6 +165,23 @@ function getInputDisplay() {
     return CalculatorState.currentInput ? text : `${text} `;
 }
 
+/**
+ * The unit to hang off the big number. Typed text that already carries its
+ * own unit ("300mm") is left alone; everything else takes the input unit.
+ * Marks stay full size, words shrink so they read as a suffix.
+ */
+function mainUnitSuffix(text) {
+    const words = text.trim().split(/\s+/);
+    const last = words[words.length - 1] || '';
+    if (last && splitUnitSuffix(last).unit) return '';
+
+    // a mark sits tight against the number, a word stands off it
+    const symbol = findUnit(CalculatorState.inputUnit).aliases[0];
+    return /^["'\u2032\u2033]$/.test(symbol)
+        ? symbol
+        : `<span class="main-unit">${symbol}</span>`;
+}
+
 function getStackExpression() {
     return CalculatorState.stack
         .map(item => typeof item === 'string'
@@ -303,9 +320,10 @@ function updateScreen() {
     const liveResult = computeLiveResult();
     topEl.innerText = liveResult ? `${liveExpression} = ${liveResult}` : liveExpression;
 
-    mainEl.innerText = CalculatorState.lastResult
+    const mainText = CalculatorState.lastResult
         ? formatValue(CalculatorState.lastResult.val, CalculatorState.lastResult.isMeas, true).main
         : getInputDisplay();
+    mainEl.innerHTML = mainText.trimEnd() + mainUnitSuffix(mainText);
 
     adjustTopDisplay();
     histEl.innerText = CalculatorState.history.length
