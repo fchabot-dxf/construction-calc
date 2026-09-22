@@ -83,38 +83,6 @@ function splitUnitSuffix(text) {
     return { number: text, unit: null };
 }
 
-/**
- * Imperial shorthand: unitless parts fill slots from the RIGHT — a trailing
- * fraction, then inches, then feet. So "5 & 6 & 1/2" is 5' 6 1/2" and
- * "5 & 6" is 5' 6", while "5 & 1/2" stays 5 1/2" as it always has.
- *
- * Returns null when the shorthand does not apply, leaving the caller's
- * normal term-summing to handle it.
- */
-function positionalInches(parts, terms, system) {
-    if (system !== 'imperial') return null;
-    if (parts.length < 2 || parts.length > 3) return null;
-    if (terms.some(term => term.unit)) return null;
-
-    const slots = [...parts];
-    const tail = slots[slots.length - 1];
-    const fraction = tail.includes('/') ? slots.pop() : null;
-    const inches = slots.pop() || null;
-    const feet = slots.pop() || null;
-
-    const val = (feet ? parseNumber(feet) * 12 : 0)
-        + (inches ? parseNumber(inches) : 0)
-        + (fraction ? parseNumber(fraction) : 0);
-
-    const raw = [
-        feet ? `${feet}'` : null,
-        inches || null,
-        fraction || null,
-    ].filter(Boolean).join(' ') + '"';
-
-    return { val, raw };
-}
-
 function formatDecimal(value) {
     return (Math.round(value * 1e4) / 1e4).toString();
 }
