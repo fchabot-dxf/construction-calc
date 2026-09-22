@@ -127,28 +127,33 @@ function formatInUnit(inchValue, unit) {
 function formatValue(value, isMeas, roundResult = false) {
     if (isNaN(value)) return { main: "Error", top: "" };
 
+    // Values are stored in inches so the maths and the conversions stay in
+    // one unit, but the display answers in the unit being typed. Without
+    // this, entering 12 with the badge on MM read back as 0.4724.
+    const shown = value / findUnit(CalculatorState.inputUnit).inches;
+
     if (!isMeas) {
         if (isDecimalPrecision()) {
-            const decimal = +value.toPrecision(12);
+            const decimal = +shown.toPrecision(12);
             return { main: decimal.toString(), top: "" };
         }
 
         if (!roundResult) {
-            return { main: formatFraction(value, CalculatorState.currentPrecision), top: "" };
+            return { main: formatFraction(shown, CalculatorState.currentPrecision), top: "" };
         }
 
         const precision = CalculatorState.currentPrecision;
         const step = 1 / precision;
-        const roundedValue = Math.round((value + Number.EPSILON) / step) * step;
+        const roundedValue = Math.round((shown + Number.EPSILON) / step) * step;
         return { main: formatFraction(roundedValue, precision), top: "" };
     }
 
     if (isDecimalPrecision()) {
-        const decimal = +value.toPrecision(12);
+        const decimal = +shown.toPrecision(12);
         return { main: decimal.toString(), top: "" };
     }
 
-    return { main: formatFraction(value, CalculatorState.currentPrecision), top: "" };
+    return { main: formatFraction(shown, CalculatorState.currentPrecision), top: "" };
 }
 
 function getInputDisplay() {
